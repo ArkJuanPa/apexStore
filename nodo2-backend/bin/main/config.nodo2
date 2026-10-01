@@ -1,0 +1,8 @@
+Ice.RetryIntervals=-1
+Ice.ThreadPool.Server.Size=8
+Ice.ThreadPool.Server.SizeMax=32
+Ice.ThreadPool.Client.Size=8
+Ice.ThreadPool.Client.SizeMax=32
+Ice.Nodo3.Host=localhost
+Ice.Nodo3.Port=10000
+Ice.Callback.Port=10001
