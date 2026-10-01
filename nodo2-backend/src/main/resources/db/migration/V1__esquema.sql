@@ -1,0 +1,8 @@
+CREATE TABLE productos (id BIGSERIAL PRIMARY KEY, nombre TEXT NOT NULL UNIQUE, precio_menor BIGINT NOT NULL CHECK (precio_menor >= 0), moneda CHAR(3) NOT NULL, stock INTEGER NOT NULL CHECK (stock >= 0));
+CREATE TABLE ordenes (id UUID PRIMARY KEY, cliente_id TEXT NOT NULL DEFAULT 'local', estado TEXT NOT NULL, total_menor BIGINT NOT NULL, moneda CHAR(3) NOT NULL, creada_en TIMESTAMPTZ NOT NULL DEFAULT now(), version BIGINT NOT NULL DEFAULT 0);
+CREATE TABLE reservas_stock (orden_id UUID NOT NULL REFERENCES ordenes(id), producto_id BIGINT NOT NULL REFERENCES productos(id), cantidad INTEGER NOT NULL CHECK (cantidad > 0), liberada BOOLEAN NOT NULL DEFAULT false, PRIMARY KEY (orden_id, producto_id));
+CREATE TABLE transacciones_pago (id UUID PRIMARY KEY, orden_id UUID NOT NULL REFERENCES ordenes(id), medio TEXT NOT NULL, clave_idempotencia TEXT NOT NULL UNIQUE, request_hash CHAR(64) NOT NULL, id_transaccion_externa TEXT UNIQUE, estado TEXT NOT NULL, monto_menor BIGINT NOT NULL, moneda CHAR(3) NOT NULL, creada_en TIMESTAMPTZ NOT NULL DEFAULT now(), actualizada_en TIMESTAMPTZ NOT NULL DEFAULT now(), vence_en TIMESTAMPTZ NOT NULL);
+CREATE TABLE eventos_procesados (id_evento TEXT PRIMARY KEY, recibido_en TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE bitacora_auditoria (id BIGSERIAL PRIMARY KEY, transaccion_id UUID NOT NULL REFERENCES transacciones_pago(id), estado_anterior TEXT, estado_nuevo TEXT NOT NULL, origen TEXT NOT NULL, detalle JSONB NOT NULL DEFAULT '{}'::jsonb, ocurrido_en TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX idx_transacciones_pendientes ON transacciones_pago(vence_en) WHERE estado = 'PENDIENTE';
+CREATE INDEX idx_ordenes_creada ON ordenes(creada_en);

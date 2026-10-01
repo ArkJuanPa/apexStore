@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ApexStore</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header><h1>ApexStore</h1><strong class="notice">Entorno de simulación: no se realizan cobros reales</strong></header>
+<main>
+<section><h2>Catálogo</h2><div id="catalogo"></div><h3>Carrito</h3><div id="carrito"></div><button id="crearOrden">Crear orden</button><p>Orden: <code id="ordenId">—</code></p></section>
+<section><h2>Pago simulado</h2><label>Medio <select id="medio"><option>STRIPE</option><option>PSE</option><option>CRIPTO</option></select></label><label>Escenario <select id="token"><option>tok_sim_ok</option><option>tok_sim_rechazado</option><option>tok_sim_fondos</option><option>tok_sim_lento</option></select></label><p>Idempotency-Key: <code id="idempotency">—</code></p><button id="pagar">Pagar</button><button id="repetir">Repetir pago con la misma clave</button><h3>Estado</h3><pre id="estado">Sin orden</pre></section>
+<section id="panelDev" hidden><h2>Simulación (desarrollo)</h2><label>Medio <select id="simMedio"><option>STRIPE</option><option>PSE</option><option>CRIPTO</option></select></label><label>Modo <select id="simModo"><option>NORMAL</option><option>LENTO</option><option>CAIDO</option><option>ERRORES_INTERMITENTES</option><option>CALLBACK_DUPLICADO</option><option>CALLBACK_PERDIDO</option><option>RECHAZO</option></select></label><label>Latencia ms <input id="latencia" type="number" min="0" max="15000" value="0"></label><label>Prob. fallo <input id="probFallo" type="number" min="0" max="1" step="0.1" value="0"></label><button id="aplicarSim">Aplicar</button><pre id="metricas"></pre></section>
+<section><h2>Registro</h2><textarea id="log" rows="12" readonly></textarea></section>
+</main><script src="app.js"></script></body></html>
