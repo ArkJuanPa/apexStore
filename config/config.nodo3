@@ -1,3 +1,0 @@
-Ice.RetryIntervals=-1
-Ice.ThreadPool.Server.Size=8
-Ice.ThreadPool.Server.SizeMax=32

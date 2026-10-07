@@ -1,18 +1,102 @@
 package com.apexstore.nodo2;
+
 import com.apexstore.contratos.MedioPago;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
+import com.apexstore.ice.pagos.ConflictoIdempotencia;
+import com.apexstore.ice.pagos.SolicitudInvalida;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Bulkhead por medio y circuit breaker (RAS-01). Solo cuentan como fallo las caídas del medio
+ * (MedioNoDisponible, timeouts y errores de transporte); los errores de negocio no abren el breaker (B6).
+ * La ventana del breaker viene de Resiliencia.BreakerAbiertoSeg.
+ */
 public final class PoliticasResiliencia {
- private final Map<MedioPago,Semaphore> bulkheads=new EnumMap<>(MedioPago.class);private final Map<MedioPago,AtomicInteger> failures=new EnumMap<>(MedioPago.class);private final Map<MedioPago,Long> openUntil=new EnumMap<>(MedioPago.class);private final Map<MedioPago,Boolean> probe=new EnumMap<>(MedioPago.class);
- public PoliticasResiliencia(){for(var m:MedioPago.values()){bulkheads.put(m,new Semaphore(m==MedioPago.PSE?16:64));failures.put(m,new AtomicInteger());openUntil.put(m,0L);probe.put(m,false);}}
- public <T>T ejecutar(MedioPago medio,Callable<T> call)throws Exception{
-  Semaphore s=bulkheads.get(medio);if(s==null||!s.tryAcquire())throw new RejectedExecutionException("Capacidad ocupada; pruebe otro medio");boolean trial=false;
-  try{synchronized(openUntil){long now=System.currentTimeMillis();if(openUntil.get(medio)>now)throw new RejectedExecutionException("Circuit breaker abierto; pruebe otro medio");if(failures.get(medio).get()>=3){if(probe.get(medio))throw new RejectedExecutionException("Circuit breaker semiabierto; espere o pruebe otro medio");probe.put(medio,true);trial=true;}}
-   try{T result=null;for(int attempt=0;attempt<3;attempt++){try{result=call.call();break;}catch(Exception e){if(attempt==2||!connectionFailure(e))throw e;Thread.sleep(40L*(attempt+1)+ThreadLocalRandom.current().nextLong(40));}}failures.get(medio).set(0);synchronized(openUntil){openUntil.put(medio,0L);}return result;
-   }catch(Exception e){if(failures.get(medio).incrementAndGet()>=3)synchronized(openUntil){openUntil.put(medio,System.currentTimeMillis()+10000);}throw e;}
-  }finally{if(trial)synchronized(openUntil){probe.put(medio,false);}s.release();}
- }
- public Map<String,String> estado(){Map<String,String> out=new HashMap<>();synchronized(openUntil){openUntil.forEach((m,t)->out.put(m.name(),t>System.currentTimeMillis()?"ABIERTO":probe.get(m)?"SEMIABIERTO":"CERRADO"));}return out;}
- private static boolean connectionFailure(Throwable e){for(Throwable x=e;x!=null;x=x.getCause()){String n=x.getClass().getSimpleName();if(n.equals("ConnectFailedException")||n.equals("ConnectTimeoutException")||n.equals("ConnectionRefusedException"))return true;}return false;}
+    private static final int FALLOS_PARA_ABRIR = 3;
+    private final long ventanaMs;
+    private final Map<MedioPago, Semaphore> cupos = new EnumMap<>(MedioPago.class);
+    private final Map<MedioPago, AtomicInteger> fallos = new EnumMap<>(MedioPago.class);
+    private final Map<MedioPago, Long> abiertoHasta = new EnumMap<>(MedioPago.class);
+    private final Map<MedioPago, Boolean> sondeo = new EnumMap<>(MedioPago.class);
+
+    public PoliticasResiliencia(long ventanaMs) {
+        this.ventanaMs = ventanaMs;
+        for (var medio : MedioPago.values()) {
+            cupos.put(medio, new Semaphore(medio == MedioPago.PSE ? 16 : 64));
+            fallos.put(medio, new AtomicInteger());
+            abiertoHasta.put(medio, 0L);
+            sondeo.put(medio, false);
+        }
+    }
+
+    public <T> T ejecutar(MedioPago medio, Callable<T> llamada) throws Exception {
+        Semaphore cupo = cupos.get(medio);
+        if (!cupo.tryAcquire()) { throw new RejectedExecutionException("Capacidad ocupada; pruebe otro medio"); }
+        try {
+            boolean sonda = admitir(medio);
+            try {
+                T resultado = conReintentos(llamada);
+                reiniciar(medio);
+                return resultado;
+            } catch (Exception e) {
+                if (contaComoFallo(e)) { registrarFallo(medio); }
+                throw e;
+            } finally {
+                if (sonda) { cerrarSonda(medio); }
+            }
+        } finally {
+            cupo.release();
+        }
+    }
+
+    private synchronized boolean admitir(MedioPago medio) {
+        long ahora = System.currentTimeMillis();
+        if (abiertoHasta.get(medio) > ahora) { throw new RejectedExecutionException("Circuit breaker abierto; pruebe otro medio"); }
+        if (fallos.get(medio).get() < FALLOS_PARA_ABRIR) { return false; }
+        if (sondeo.get(medio)) { throw new RejectedExecutionException("Circuit breaker semiabierto; espere o pruebe otro medio"); }
+        sondeo.put(medio, true);
+        return true;
+    }
+
+    private synchronized void registrarFallo(MedioPago medio) {
+        if (fallos.get(medio).incrementAndGet() >= FALLOS_PARA_ABRIR) {
+            abiertoHasta.put(medio, System.currentTimeMillis() + ventanaMs);
+        }
+    }
+
+    private synchronized void reiniciar(MedioPago medio) {
+        fallos.get(medio).set(0);
+        abiertoHasta.put(medio, 0L);
+    }
+
+    private synchronized void cerrarSonda(MedioPago medio) {
+        sondeo.put(medio, false);
+    }
+
+    private static <T> T conReintentos(Callable<T> llamada) throws Exception {
+        for (int intento = 0; ; intento++) {
+            try {
+                return llamada.call();
+            } catch (Exception e) {
+                if (intento == 2 || !falloDeConexion(e)) { throw e; }
+                Thread.sleep(40L * (intento + 1) + ThreadLocalRandom.current().nextLong(40));
+            }
+        }
+    }
+
+    private static boolean contaComoFallo(Throwable e) {
+        for (Throwable x = e; x != null; x = x.getCause()) {
+            if (x instanceof SolicitudInvalida || x instanceof ConflictoIdempotencia) { return false; }
+        }
+        return true;
+    }
+
+    private static boolean falloDeConexion(Throwable e) {
+        for (Throwable x = e; x != null; x = x.getCause()) {
+            String nombre = x.getClass().getSimpleName();
+            if (nombre.equals("ConnectFailedException") || nombre.equals("ConnectTimeoutException") || nombre.equals("ConnectionRefusedException")) { return true; }
+        }
+        return false;
+    }
 }

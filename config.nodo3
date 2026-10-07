@@ -1,0 +1,12 @@
+# Nodo 3 (pasarelas simuladas). Edite Pasarelas.Endpoints y Receptor.Proxy para cambiar IP o puerto sin recompilar.
+Pasarelas.Endpoints=tcp -h 0.0.0.0 -p 10000
+Receptor.Proxy=receptor:tcp -h localhost -p 10001
+Ice.Default.Package=com.apexstore.ice
+# Aceptación simulada de la respuesta síncrona del pago (RAS-02). El retardo largo de 15 s va en el callback.
+Simulacion.AceptacionMinMs=30
+Simulacion.AceptacionMaxMs=80
+Ice.RetryIntervals=-1
+Ice.ThreadPool.Server.Size=8
+Ice.ThreadPool.Server.SizeMax=32
+Ice.ThreadPool.Client.Size=8
+Ice.ThreadPool.Client.SizeMax=32

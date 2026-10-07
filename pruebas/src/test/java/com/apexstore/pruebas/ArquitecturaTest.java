@@ -5,6 +5,9 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+/**
+ * Prueba RAS-03: Nodo 3 no accede a la base y el contexto de pagos no depende de ICE.
+ */
 class ArquitecturaTest {
  @Test void nodoTresNoAccedeABaseDeDatos(){
   ArchRule rule=noClasses().that().resideInAPackage("com.apexstore.nodo3..").should().dependOnClassesThat().resideInAnyPackage("java.sql..","org.postgresql..","com.zaxxer..");

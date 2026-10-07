@@ -1,0 +1,14 @@
+# Nodo 2 (backend core). Edite IPs y puertos aquí, sin recompilar.
+Checkout.Endpoints=tcp -h 0.0.0.0 -p 10003
+Callbacks.Endpoints=tcp -h 0.0.0.0 -p 10001
+Repositorio.Proxy=repositorio:tcp -h localhost -p 10004
+Estrategia.STRIPE.Proxy=estrategia/stripe:tcp -h localhost -p 10000
+Estrategia.PSE.Proxy=estrategia/pse:tcp -h localhost -p 10000
+Estrategia.CRIPTO.Proxy=estrategia/cripto:tcp -h localhost -p 10000
+Resiliencia.BreakerAbiertoSeg=30
+Ice.Default.Package=com.apexstore.ice
+Ice.RetryIntervals=-1
+Ice.ThreadPool.Server.Size=8
+Ice.ThreadPool.Server.SizeMax=32
+Ice.ThreadPool.Client.Size=8
+Ice.ThreadPool.Client.SizeMax=32

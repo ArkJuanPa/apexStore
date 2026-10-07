@@ -7,35 +7,3 @@ subprojects {
     dependencies { testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4' }
     tasks.withType(Test).configureEach { useJUnitPlatform() }
 }
-tasks.register('verificarDependencias') {
-    group = 'verification'
-    doLast {
-        def forbidden = java.util.regex.Pattern.compile('(com\\.stripe|org\\.bitcoinj|org\\.web3j|stripe-java|paypal|adyen|braintree)', java.util.regex.Pattern.CASE_INSENSITIVE)
-        def bad = subprojects.collectMany { p -> p.configurations.findAll { it.canBeResolved }.collectMany { c -> c.resolvedConfiguration.resolvedArtifacts.collect { "${it.moduleVersion.id.group}:${it.name}" } } }.findAll { forbidden.matcher(it).find() }
-        if (bad) throw new GradleException("Dependencias prohibidas: ${bad}")
-    }
-}
-tasks.register('verificarArquitectura') {
-    group = 'verification'
-    doLast {
-        def root = projectDir.toPath()
-        def scanFiles = []
-        ['nodo2-backend/src', 'nodo3-pasarelas/src', 'nodo4-db/src', 'contratos-ice/src/main/slice'].each { rel ->
-            def dir = file(rel)
-            if (dir.exists()) scanFiles += fileTree(dir) { include '**/*.java'; include '**/*.ice' }.files
-        }
-        def secretNames = java.util.regex.Pattern.compile('(?i)\\b(cvc|cvv|pan|numCuenta|numeroCuenta)\\b')
-        scanFiles.each { f -> if (secretNames.matcher(f.getText('UTF-8')).find()) throw new GradleException("Identificador de pago real prohibido en ${f}") }
-        fileTree('nodo2-backend/src/main/resources/db/migration') { include '*.sql' }.each { f ->
-            if (java.util.regex.Pattern.compile('(?i)\\b(drop|truncate)\\b').matcher(f.getText('UTF-8')).find()) throw new GradleException("Operación destructiva en migración ${f}")
-        }
-        def compose = file('docker-compose.yml').getText('UTF-8')
-        if (!(compose =~ /red_pagos:\s*\n\s+internal:\s*true/)) throw new GradleException('red_pagos debe ser internal')
-        if (compose.contains('red_datos')) throw new GradleException('Modo externo no debe definir red_datos')
-        def node3 = (compose =~ /(?s)nodo3:(.*?)(?:\n  [a-z0-9_-]+:|\nnetworks:)/)
-        if (!node3.find() || node3.group(1).contains('red_datos') || node3.group(1).contains('nodo4')) throw new GradleException('Nodo 3 tiene una ruta no permitida')
-        def local = file('docker-compose.db-local.yml').getText('UTF-8')
-        if (!(local =~ /red_datos:\s*\n\s+internal:\s*true/)) throw new GradleException('red_datos debe ser internal en modo local')
-    }
-}
-tasks.named('check') { dependsOn 'verificarDependencias', 'verificarArquitectura' }

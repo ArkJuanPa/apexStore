@@ -1,0 +1,2 @@
+# Nodo 4 (persistencia). Edite Repositorio.Endpoints para cambiar IP o puerto sin recompilar.
+Repositorio.Endpoints=tcp -h 0.0.0.0 -p 10004

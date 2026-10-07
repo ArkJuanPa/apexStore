@@ -1,8 +1,0 @@
-Ice.RetryIntervals=-1
-Ice.ThreadPool.Server.Size=8
-Ice.ThreadPool.Server.SizeMax=32
-Ice.ThreadPool.Client.Size=8
-Ice.ThreadPool.Client.SizeMax=32
-Ice.Callback.Host=nodo2
-Ice.Callback.Port=10001
-Ice.Pasarelas.Port=10000

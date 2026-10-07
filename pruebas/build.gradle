@@ -1,7 +1,14 @@
-dependencies { implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'; testImplementation project(':contratos'); testImplementation project(':nodo2-backend'); testImplementation project(':nodo3-pasarelas'); testImplementation 'com.zaxxer:HikariCP:6.2.1'; testImplementation 'org.testcontainers:junit-jupiter:1.20.4'; testImplementation 'org.testcontainers:postgresql:1.20.4'; testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0' }
-tasks.register('carga', JavaExec) {
+dependencies { implementation project(':contratos-ice'); implementation 'com.zeroc:ice:3.7.10'; testImplementation project(':contratos'); testImplementation project(':nodo2-backend'); testImplementation project(':nodo3-pasarelas'); testImplementation project(':nodo4-db'); testImplementation 'com.zaxxer:HikariCP:6.2.1'; testImplementation 'org.testcontainers:junit-jupiter:1.20.4'; testImplementation 'org.testcontainers:postgresql:1.20.4'; testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0' }
+tasks.register('medirRas02', JavaExec) {
     group = 'verification'
-    description = 'Ejecuta carga concurrente del checkout con HttpClient y virtual threads.'
+    description = 'Mide RAS-02 por tramos (10 de calentamiento, 50 medidas). Requiere Nodo 2 con log en un archivo.'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.apexstore.pruebas.CargaCheckout'
+    mainClass = 'com.apexstore.pruebas.MedidorRAS02'
+    workingDir rootProject.projectDir
+}
+
+// Docker Engine 29 rechaza la version de API que usa Testcontainers 1.20.4 (400 Bad Request).
+// Se fija una version de API compatible con Docker reciente para que las pruebas PostgreSQL corran.
+tasks.withType(Test).configureEach {
+    systemProperty 'api.version', '1.44'
 }

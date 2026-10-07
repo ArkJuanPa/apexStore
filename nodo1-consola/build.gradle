@@ -1,0 +1,4 @@
+plugins { id 'application' }
+dependencies { implementation project(':contratos-ice'); implementation 'com.zeroc:ice:3.7.10' }
+application { mainClass = 'com.apexstore.nodo1.ClienteConsola' }
+tasks.named('run', JavaExec) { workingDir rootProject.projectDir }

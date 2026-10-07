@@ -1,31 +1,20 @@
+# Solo PostgreSQL 16. Los nodos Java corren fuera de Docker con los scripts run-nodoX.
+# Credenciales y puerto salen de .env (DB_NOMBRE, DB_USUARIO, DB_PASSWORD, DB_PORT).
 services:
-  nodo1:
-    build: ./nodo1-clientes
-    ports: ["8080:80"]
-    networks: [red_publica]
-    depends_on: [nodo2]
-  nodo2:
-    build:
-      context: .
-      dockerfile: nodo2-backend/Dockerfile
-    env_file: .env
+  postgres:
+    image: postgres:16
+    container_name: apex-postgres
     environment:
-      ICE_NODO3_HOST: nodo3
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-    extra_hosts: ["host.docker.internal:host-gateway"]
-    networks: [red_publica, red_pagos]
-    # Nodo 2 espera PostgreSQL con reintentos propios.
-  nodo3:
-    build:
-      context: .
-      dockerfile: nodo3-pasarelas/Dockerfile
-    environment:
-      ICE_CALLBACK_HOST: nodo2
-      ICE_CALLBACK_PORT: 10001
-      ICE_NODO3_PORT: 10000
-      SECRETO_FIRMA_SIMULACION: ${SECRETO_FIRMA_SIMULACION:-desarrollo-apexstore-no-usar-en-produccion}
-    networks: [red_pagos]
-networks:
-  red_publica: {}
-  red_pagos:
-    internal: true
+      POSTGRES_DB: ${DB_NOMBRE:-apex}
+      POSTGRES_USER: ${DB_USUARIO:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - apex_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-postgres} -d ${DB_NOMBRE:-apex}"]
+      interval: 3s
+      retries: 20
+volumes:
+  apex_pgdata:
