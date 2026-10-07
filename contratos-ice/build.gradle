@@ -1,0 +1,2 @@
+plugins { id 'com.zeroc.gradle.ice-builder.slice' version '1.5.2' }
+dependencies { implementation project(':contratos'); implementation 'com.zeroc:ice:3.7.10' }

@@ -1,0 +1,9 @@
+plugins { id 'base' }
+allprojects { group = 'com.apexstore'; version = '0.1.0'; repositories { mavenCentral() } }
+subprojects {
+    apply plugin: 'java'
+    java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+    tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+    dependencies { testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4' }
+    tasks.withType(Test).configureEach { useJUnitPlatform() }
+}
